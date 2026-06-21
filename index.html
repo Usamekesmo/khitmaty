@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ختمتي - تطبيق الختمة الجماعية</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#1a4739">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ختمتي">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-messaging-compat.js"></script>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div id="authScreen" class="screen active">
+    <div class="container">
+        <div class="logo"><h1>📖 ختمتي</h1><p>تطبيق الختمة الجماعية</p></div>
+        <div class="full-auth-form">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="login">دخول</button>
+                <button class="tab-btn" data-tab="register">تسجيل جديد</button>
+            </div>
+            <form id="loginForm" class="auth-form active">
+                <input type="text" id="loginUsername" placeholder="اسم المستخدم أو البريد الإلكتروني" required>
+                <input type="password" id="loginPassword" placeholder="كلمة السر" required>
+                <button type="submit">دخول</button>
+                <a href="#" id="forgotPasswordLink" class="forgot-link">نسيت كلمة السر؟</a>
+            </form>
+            <form id="registerForm" class="auth-form">
+                <input type="text" id="regName" placeholder="اسم المستخدم (3 أحرف فأكثر)" required>
+                <div id="nameAvailability" class="name-availability"></div>
+                <input type="email" id="regEmail" placeholder="البريد الإلكتروني" required>
+                <select id="regGender" required>
+                    <option value="">اختر الجنس</option>
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                </select>
+                <input type="password" id="regPassword" placeholder="كلمة السر (6 أحرف على الأقل)" required>
+                <input type="password" id="regConfirmPassword" placeholder="تأكيد كلمة السر" required>
+                <button type="submit" id="registerBtn">تسجيل جديد</button>
+            </form>
+            <div class="divider">أو</div>
+            <button id="googleFullBtn" class="google-btn">🌐 دخول عبر Google</button>
+        </div>
+        <div id="authMessage" class="message"></div>
+    </div>
+</div>
+
+<!-- شاشة اختيار الحلقة (تم التعديل - لا يظهر زر انضمام) -->
+<div id="selectCircleScreen" class="screen">
+    <div class="container">
+        <div class="logo"><h1>📖 ختمتي</h1><p>اختر حلقتك</p></div>
+        <div class="circle-actions-buttons">
+            <button id="refreshCirclesBtn" class="refresh-btn">🔄 تحديث</button>
+            <button id="exitToAuthBtn" class="exit-btn">🚪 خروج</button>
+            <button id="darkModeToggleCircle" class="dark-mode-toggle">🌙</button>
+        </div>
+        <div class="filter-gender-buttons">
+            <button id="filterAllCircles" class="filter-gender-btn active">الكل</button>
+            <button id="filterFemaleCircles" class="filter-gender-btn">👩 نسائية</button>
+            <button id="filterMaleCircles" class="filter-gender-btn">👨 رجالية</button>
+        </div>
+        <div class="search-circle-box">
+            <input type="text" id="searchCircleInput" placeholder="🔍 بحث باسم الحلقة أو الرمز" class="search-input">
+        </div>
+        <!-- مربع إدخال رمز الحلقة - الطريقة الوحيدة للانضمام -->
+        <div class="join-by-code-box">
+            <input type="text" id="circleCodeInput" placeholder="🔑 أدخل رمز الحلقة للانضمام" class="search-input">
+            <button id="joinByCodeDirectBtn" class="join-code-btn">📥 انضمام بالرمز</button>
+        </div>
+        <div class="invite-section"><hr><p>أو</p></div>
+        <h3>الحلقات المتاحة (عرض فقط)</h3>
+        <div id="availableCirclesList" class="circles-list">جاري التحميل...</div>
+        <div id="circleSelectionMessage" class="message"></div>
+    </div>
+</div>
+
+<!-- شاشة اختيار الجزء الأساسي -->
+<div id="selectJuzScreen" class="screen">
+    <div class="container">
+        <div class="logo"><h1>📖 ختمتي</h1><p>اختر جزءك</p></div>
+        <button id="backToCirclesBtn" class="back-from-juz-btn">⬅️ رجوع إلى الحلقات</button>
+        <div id="juzGrid" class="juz-grid"></div>
+        <div id="juzSelectionMessage" class="message"></div>
+    </div>
+</div>
+
+<!-- الشاشة الرئيسية -->
+<div id="mainScreen" class="screen">
+    <div class="main-container">
+        <header>
+            <div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h2>مرحباً، <span id="userName"></span></h2>
+                    <button id="editUserNameBtn" class="edit-name-btn" title="تعديل الاسم">✏️ تعديل</button>
+                    <button id="manageCircleBtn" class="admin-btn" style="display:none; background:#8b5cf6;" title="إدارة الحلقة">⚙️ إدارة</button>
+                </div>
+                <div id="userInfo" class="user-info" style="font-size:12px; color:#666; margin-top:5px;"></div>
+            </div>
+            <div class="header-buttons">
+                <button id="installPwaBtn" class="install-btn" style="display:none;">📲 تثبيت</button>
+                <button id="fontSizeBtn" class="icon-btn" title="حجم الخط">🔤</button>
+                <button id="darkModeToggleMain" class="icon-btn" title="الوضع الليلي">🌙</button>
+                <button id="adminPanelBtn" class="admin-btn" style="display:none;">👑 لوحة المدير</button>
+                <button id="logoutBtn" class="logout-btn">🚪 خروج</button>
+            </div>
+        </header>
+        
+        <div id="warningMessage" class="warning-message" style="display:none;"></div>
+        
+        <div class="main-tabs">
+            <button class="main-tab-btn active" data-tab="dashboard">📖 وردي اليوم</button>
+            <button class="main-tab-btn" data-tab="circle">🔄 حلقتى</button>
+            <button class="main-tab-btn" data-tab="myJuz">📚 أجزائي</button>
+            <button class="main-tab-btn" data-tab="achievements">🏆 إنجازاتي</button>
+        </div>
+
+        <div id="dashboardTab" class="main-tab-content active">
+            <div class="juz-card">
+                <h3>📖 وردك اليوم</h3>
+                <div class="juz-number" id="currentJuz">-</div>
+                <p id="juzStatus"></p>
+                
+                <div class="stats-mini">
+                    <div class="stat-mini">📊 إجمالي الأجزاء المقروءة: <strong id="totalPartsCount">0</strong></div>
+                    <div class="stat-mini">🏆 عدد الختمات: <strong id="khatmasCount">0</strong></div>
+                    <div class="stat-mini">📅 يوم الانضمام: <strong id="joinDateDisplay">-</strong></div>
+                </div>
+                
+                <div class="progress-chart-container">
+                    <canvas id="juzProgressChart" width="150" height="150" style="max-width:150px; margin:0 auto;"></canvas>
+                    <div class="progress-percent" id="juzProgressPercent">0%</div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="khatmaProgress"></div>
+                    <span class="progress-label">التقدم نحو الختمة التالية</span>
+                </div>
+                
+                <div class="juz-actions">
+                    <button id="completeDailyJuzBtn" class="complete-juz-btn">✅ أنهيت وردي اليوم</button>
+                    <button id="viewJuzTextBtn" class="complete-juz-btn" style="background:#6c757d;">📖 عرض نص الجزء</button>
+                    <button id="listenJuzBtn" class="complete-juz-btn" style="background:#8b5cf6;">🔊 استماع للجزء</button>
+                    <button id="shareJuzBtn" class="complete-juz-btn" style="background:#25D366;">📱 مشاركة</button>
+                </div>
+            </div>
+            
+            <div id="juzTextViewer" style="display:none; background:#f8fafc; border-radius:20px; margin-top:20px; position: relative;">
+                <div class="quran-viewer-header">
+                    <h4>📖 نص الجزء <span id="viewerJuzNumber"></span></h4>
+                    <button id="closeTextViewer" class="close-viewer-btn">✖️</button>
+                </div>
+                <div class="quran-pagination">
+                    <button id="prevPageBtn" class="page-nav-btn">⬅️ الصفحة السابقة</button>
+                    <span id="currentPageDisplay">الصفحة 0</span>
+                    <button id="nextPageBtn" class="page-nav-btn">الصفحة التالية ➡️</button>
+                </div>
+                <div id="juzTextContent" style="max-height:500px; overflow-y:auto; padding:20px; font-size:18px; line-height:2;"></div>
+            </div>
+
+            <div class="extra-readings-advanced">
+                <h4>📚 الأجزاء الإضافية <span id="extraLimitBadge"></span></h4>
+                <button id="addExtraJuzBtn" class="plan-btn" style="background:#1a4739; margin-bottom:15px;">📦 أضف جزءاً من المخزون</button>
+                <div id="extraProgressList" class="extra-progress-list"></div>
+            </div>
+        </div>
+
+        <div id="circleTab" class="main-tab-content">
+            <div id="circleInfo"></div>
+            <div id="circleActions"></div>
+            <div id="circleMembersList" class="members-list"></div>
+        </div>
+        
+        <div id="myJuzTab" class="main-tab-content">
+            <h3>📚 أجزائي</h3>
+            <div id="myJuzList" class="my-juz-list"></div>
+        </div>
+
+        <div id="achievementsTab" class="main-tab-content">
+            <h3>🏆 إنجازاتي</h3>
+            <div id="achievementsList" class="achievements-grid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- شاشة المدير العام -->
+<div id="adminScreen" class="screen admin-screen">
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>👑 لوحة تحكم المدير العام</h1>
+            <div>
+                <button id="backToUserBtn" class="back-btn">📱 العودة</button>
+                <button id="adminLogoutBtn" class="logout-btn">🚪 خروج</button>
+                <button id="darkModeToggleAdmin" class="dark-mode-toggle">🌙</button>
+            </div>
+        </div>
+        <div class="admin-tabs-mobile">
+            <select id="adminTabSelect">
+                <option value="circles">🔄 الحلقات</option>
+                <option value="users">👥 المستخدمين</option>
+                <option value="extraPool">🗃️ المخزون العام</option>
+                <option value="reports">📈 التقارير</option>
+                <option value="notifications">🔔 الإشعارات</option>
+                <option value="settings">⚙️ الإعدادات</option>
+                <option value="shareMessage">📨 رسالة المشاركة</option>
+            </select>
+        </div>
+        <div class="admin-tabs desktop-tabs">
+            <button class="admin-tab-btn active" data-admin-tab="circles">🔄 الحلقات</button>
+            <button class="admin-tab-btn" data-admin-tab="users">👥 المستخدمين</button>
+            <button class="admin-tab-btn" data-admin-tab="extraPool">🗃️ المخزون العام</button>
+            <button class="admin-tab-btn" data-admin-tab="reports">📈 التقارير</button>
+            <button class="admin-tab-btn" data-admin-tab="notifications">🔔 الإشعارات</button>
+            <button class="admin-tab-btn" data-admin-tab="settings">⚙️ الإعدادات</button>
+            <button class="admin-tab-btn" data-admin-tab="shareMessage">📨 رسالة المشاركة</button>
+        </div>
+        
+        <div id="adminCirclesTab" class="admin-tab-content active">
+            <div class="admin-actions">
+                <button id="createCircleBtn" class="admin-action-btn">➕ إنشاء حلقة</button>
+                <button onclick="exportCirclesToExcel()" class="admin-action-btn secondary">📊 تصدير Excel</button>
+            </div>
+            <input type="text" id="searchCircle" placeholder="🔍 بحث عن حلقة" class="search-input">
+            <div id="circlesList" class="admin-list"></div>
+        </div>
+        
+        <div id="adminUsersTab" class="admin-tab-content">
+            <div class="admin-filters">
+                <input type="text" id="searchUser" placeholder="🔍 بحث">
+                <select id="filterCircle"></select>
+                <select id="filterGender"><option value="all">الكل</option><option value="male">👨 رجال</option><option value="female">👩 نساء</option></select>
+            </div>
+            <div class="admin-actions" style="margin-top:10px; flex-wrap:wrap;">
+                <button onclick="exportUsersFullCSV()" class="admin-action-btn" style="background:#0ea5e9;">📊 تصدير كامل CSV</button>
+                <button onclick="exportUsersSimpleCSV()" class="admin-action-btn" style="background:#22c55e;">📊 تصدير ملخص CSV</button>
+                <button onclick="exportUsersFullPDF()" class="admin-action-btn" style="background:#dc2626;">📄 تصدير PDF</button>
+                <button onclick="exportUsersFullExcel()" class="admin-action-btn" style="background:#2563eb;">📊 تصدير Excel</button>
+                <button onclick="exportUsersAsImage()" class="admin-action-btn" style="background:#8b5cf6;">🖼️ تصدير صورة</button>
+                <button onclick="exportActiveUsersToWhatsApp()" class="admin-action-btn" style="background:#25D366;">📱 النشطاء واتساب</button>
+                <button onclick="exportInactiveUsersToWhatsApp()" class="admin-action-btn" style="background:#ef4444;">📱 الغائبين واتساب</button>
+            </div>
+            <div id="usersList" class="admin-list"></div>
+        </div>
+        
+        <div id="adminExtraPoolTab" class="admin-tab-content">
+            <div class="admin-actions"><button id="refillExtraPoolBtn" class="admin-action-btn">🔄 تجديد المخزون (30 جزءاً)</button></div>
+            <div class="extra-pool-stats">
+                <div class="stat-card"><span>📦 الأجزاء المتاحة</span><strong id="availableExtraJuzCount">0</strong></div>
+                <div class="stat-card"><span>✅ الأجزاء المأخوذة</span><strong id="takenExtraJuzCount">0</strong></div>
+                <div class="stat-card"><span>📅 آخر تجديد</span><strong id="lastRefillDate">-</strong></div>
+            </div>
+            <h4>📋 تفاصيل الأجزاء المأخوذة</h4>
+            <div id="takenExtraJuzList" class="admin-list"></div>
+        </div>
+        
+        <div id="adminReportsTab" class="admin-tab-content">
+            <div class="admin-actions">
+                <button onclick="generateFullReport()" class="admin-action-btn">📊 تقرير كامل</button>
+                <button onclick="downloadReportAsPDF()" class="admin-action-btn secondary">📄 PDF</button>
+                <button onclick="exportReportToExcel()" class="admin-action-btn" style="background:#25D366;">📊 تصدير Excel</button>
+            </div>
+            <div id="reportContent" class="report-content"></div>
+        </div>
+        
+        <div id="adminNotificationsTab" class="admin-tab-content">
+            <div class="send-notification">
+                <h4>📨 إرسال إشعار عام</h4>
+                <input type="text" id="notificationTitle" placeholder="العنوان">
+                <textarea id="notificationMessage" placeholder="النص" rows="3"></textarea>
+                <button onclick="sendBroadcastNotification()" class="admin-action-btn">📨 إرسال</button>
+            </div>
+        </div>
+        
+        <div id="adminSettingsTab" class="admin-tab-content">
+            <h3>⚙️ إعدادات التطبيق</h3>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <label for="maxCircleMembers">👥 الحد الأقصى للأعضاء في الحلقة</label>
+                    <input type="number" id="maxCircleMembers" min="5" max="100" value="30">
+                    <button onclick="updateSetting('maxCircleMembers')" class="setting-btn">حفظ</button>
+                    <small class="setting-note">العدد الحالي: <span id="currentMaxCircleMembers">30</span></small>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="maxExtraPerDay">📚 الحد الأقصى للأجزاء الإضافية يومياً</label>
+                    <input type="number" id="maxExtraPerDay" min="1" max="10" value="1">
+                    <button onclick="updateSetting('maxExtraPerDay')" class="setting-btn">حفظ</button>
+                    <small class="setting-note">العدد الحالي: <span id="currentMaxExtraPerDay">1</span></small>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="maxAbsenceDays">⚠️ أيام الغياب قبل الإخراج</label>
+                    <input type="number" id="maxAbsenceDays" min="1" max="10" value="3">
+                    <button onclick="updateSetting('maxAbsenceDays')" class="setting-btn">حفظ</button>
+                    <small class="setting-note">العدد الحالي: <span id="currentMaxAbsenceDays">3</span></small>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="reminderHour">🔔 وقت التذكير اليومي (بصيغة 24 ساعة)</label>
+                    <input type="number" id="reminderHour" min="0" max="23" value="20">
+                    <button onclick="updateReminderTime()" class="setting-btn">حفظ</button>
+                    <small class="setting-note">الوقت الحالي: <span id="currentReminderHour">20:00</span></small>
+                </div>
+                
+                <hr style="margin: 30px 0;">
+                
+                <div class="setting-item">
+                    <h4>🗑️ إدارة البيانات</h4>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="confirmClearAllData()" class="admin-action-btn" style="background:#dc2626;">⚠️ مسح جميع البيانات</button>
+                        <button onclick="resetAllSettings()" class="admin-action-btn secondary">↩️ إعادة ضبط الإعدادات</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminShareMessageTab" class="admin-tab-content">
+            <h3>📨 رسالة المشاركة</h3>
+            <div class="send-notification">
+                <h4>✏️ نص رسالة المشاركة</h4>
+                <p style="font-size:12px; color:#666; margin-bottom:10px;">هذا النص سيظهر عند مشاركة المستخدم لقراءة الجزء</p>
+                <textarea id="shareMessageText" rows="5" style="width:100%; padding:12px; border-radius:15px; border:2px solid #e9ecef; font-size:14px;">📖 أنا أقرأ الجزء {juz} من القرآن الكريم في تطبيق ختمتي! 🕌\n\nانضم إلينا وشارك في الختمة الجماعية 📚\n\n#ختمتي #القرآن_الكريم</textarea>
+                <button onclick="saveShareMessage()" class="admin-action-btn" style="margin-top:10px;">💾 حفظ الرسالة</button>
+                <div id="shareMessageStatus" class="message"></div>
+            </div>
+            <div style="margin-top:20px; padding:15px; background:#f8fafc; border-radius:15px;">
+                <h4>📱 معاينة الرسالة</h4>
+                <div id="shareMessagePreview" style="background:white; padding:15px; border-radius:10px; border:1px solid #e9ecef; direction:ltr; text-align:left;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إدارة الحلقة (للمدير فقط) -->
+<div id="circleManagementModal" class="modal">
+    <div class="modal-content" style="max-width:500px; max-height:90vh; overflow-y:auto;">
+        <span class="close-modal" onclick="document.getElementById('circleManagementModal').style.display='none'">&times;</span>
+        <h3>⚙️ إدارة الحلقة</h3>
+        
+        <div class="management-section" style="margin-bottom:20px;">
+            <h4>🔑 رمز الحلقة</h4>
+            <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                <input type="text" id="circleInviteCodeDisplay" readonly style="flex:1; padding:10px; border-radius:10px; border:1px solid #ddd; background:#f1f5f9; min-width:100px;">
+                <button onclick="copyInviteCode()" class="admin-action-btn" style="background:#3b82f6; padding:8px 16px;">📋 نسخ</button>
+                <button onclick="regenerateInviteCode()" class="admin-action-btn" style="background:#f59e0b; padding:8px 16px;">🔄 تغيير</button>
+            </div>
+        </div>
+        
+        <div class="management-section" style="margin-bottom:20px;">
+            <h4>👥 أعضاء الحلقة</h4>
+            <div id="circleMembersManagementList" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <div class="management-section">
+            <h4>📨 إرسال رسالة للأعضاء</h4>
+            <select id="messageRecipientType" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;">
+                <option value="all">جميع الأعضاء</option>
+                <option value="active">النشطاء فقط (قرأوا اليوم)</option>
+                <option value="inactive">الغائبين (لم يقرأوا اليوم)</option>
+                <option value="specific">عضو محدد</option>
+            </select>
+            <div id="specificMemberSelect" style="display:none; margin-bottom:10px;">
+                <select id="specificMemberList" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;"></select>
+            </div>
+            <input type="text" id="messageSubject" placeholder="عنوان الرسالة" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;">
+            <textarea id="messageContent" placeholder="نص الرسالة" rows="3" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;"></textarea>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button onclick="sendMessageToMembers('app')" class="admin-action-btn" style="background:#1a4739; flex:1; padding:12px;">📱 إرسال في التطبيق</button>
+                <button onclick="sendMessageToMembers('email')" class="admin-action-btn" style="background:#2563eb; flex:1; padding:12px;">📧 إرسال بريد</button>
+            </div>
+            <div id="messageResult" class="message" style="margin-top:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال اختيار الجزء الإضافي -->
+<div id="extraJuzModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>📦 اختر جزءاً إضافياً من المخزون العام</h3>
+        <p id="availableExtraCountMsg"></p>
+        <div class="juz-grid" id="extraJuzGrid"></div>
+        <div id="extraJuzModalMessage" class="message"></div>
+    </div>
+</div>
+
+<!-- مودال تعديل اسم المستخدم -->
+<div id="editNameModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>✏️ تعديل اسم المستخدم</h3>
+        <input type="text" id="newUserName" placeholder="الاسم الجديد" required>
+        <div id="editNameAvailability" class="name-availability"></div>
+        <button id="confirmEditNameBtn">حفظ التغييرات</button>
+    </div>
+</div>
+
+<!-- مودال الاستماع -->
+<div id="audioPlayerModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="document.getElementById('audioPlayerModal').style.display='none'">&times;</span>
+        <h3>🔊 استماع للجزء <span id="audioJuzNumber"></span></h3>
+        <div id="audioPlayerContainer" style="margin:20px 0;">
+            <audio id="quranAudio" controls style="width:100%; border-radius:15px; height:50px;">
+                <source id="audioSource" src="" type="audio/mpeg">
+                متصفحك لا يدعم تشغيل الصوت
+            </audio>
+        </div>
+        <div id="audioStatus" style="text-align:center; color:#666; font-size:14px; margin:10px 0;"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="stopAudioPlayback()" class="admin-action-btn" style="background:#ef4444; flex:1; padding:12px; font-size:15px;">⏹️ إيقاف</button>
+            <button onclick="document.getElementById('audioPlayerModal').style.display='none'" class="admin-action-btn" style="background:#6c757d; flex:1; padding:12px; font-size:15px;">إغلاق</button>
+        </div>
+    </div>
+</div>
+
+<!-- مودال المشاركة -->
+<div id="shareModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>📱 مشاركة</h3>
+        <p id="shareMessageDisplay" style="background:#f8fafc; padding:15px; border-radius:10px; margin:15px 0; font-size:14px; line-height:1.8;"></p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="shareToWhatsApp()" class="share-social-btn" style="background:#25D366;">📱 واتساب</button>
+            <button onclick="shareToTelegram()" class="share-social-btn" style="background:#0088cc;">✈️ تيليجرام</button>
+            <button onclick="shareToTwitter()" class="share-social-btn" style="background:#1DA1F2;">🐦 تويتر</button>
+            <button onclick="copyShareText()" class="share-social-btn" style="background:#6c757d;">📋 نسخ</button>
+        </div>
+        <button onclick="document.getElementById('shareModal').style.display='none'" class="admin-action-btn" style="width:100%; margin-top:10px;">إغلاق</button>
+    </div>
+</div>
+
+<!-- مودالات أخرى -->
+<div id="inviteCodeModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>🔑 انضمام برمز الدعوة</h3>
+        <input type="text" id="inviteCodeInput" placeholder="رمز الدعوة">
+        <button id="confirmInviteBtn">انضمام</button>
+    </div>
+</div>
+
+<div id="resetModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>🔐 إعادة تعيين كلمة السر</h3>
+        <input type="email" id="resetEmail" placeholder="بريدك الإلكتروني">
+        <button id="sendResetBtn">📧 إرسال الرابط</button>
+        <div id="resetMessage"></div>
+    </div>
+</div>
+
+<div id="fontSizeModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>🔤 حجم الخط</h3>
+        <div class="font-size-options">
+            <button data-size="small">صغير</button>
+            <button data-size="medium">متوسط</button>
+            <button data-size="large">كبير</button>
+        </div>
+    </div>
+</div>
+
+<div id="notificationPermissionModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>🔔 تفعيل التنبيهات</h3>
+        <p>هل تريد تلقي تذكير يومي بالورد؟</p>
+        <button id="enableNotificationsBtn">نعم، فعّل</button>
+        <button id="dismissNotificationsBtn">ليس الآن</button>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
