@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ختمتي - غير متصل</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c32, #2a5a4a);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .offline-card {
+            background: white;
+            border-radius: 35px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+        }
+        h1 {
+            color: #1a4739;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        button {
+            background: #1a4739;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0f2c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div class="icon">📡</div>
+        <h1>أنت غير متصل بالإنترنت</h1>
+        <p>يرجى التحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.</p>
+        <button onclick="location.reload()">🔄 إعادة المحاولة</button>
+    </div>
+</body>
+</html>
